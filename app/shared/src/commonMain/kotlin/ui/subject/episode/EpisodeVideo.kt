@@ -617,6 +617,9 @@ private fun PreviewVideoScaffoldImpl(
                         onDismissRequest = { goBack() },
                         onRefresh = {},
                         onRestartSource = {},
+                        hasLocalFileBinding = false,
+                        onBindLocalFile = { false },
+                        onClearLocalFileBinding = { false },
                     )
                 },
                 episodeSelectorPage = {

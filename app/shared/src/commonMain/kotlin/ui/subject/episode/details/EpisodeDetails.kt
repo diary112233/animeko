@@ -142,6 +142,8 @@ import me.him188.ani.app.ui.subject.episode.statistics.DanmakuMatchInfoSummaryRo
 import me.him188.ani.app.ui.subject.episode.statistics.DanmakuStatistics
 import me.him188.ani.app.ui.subject.episode.statistics.VideoStatistics
 import me.him188.ani.app.ui.subject.episode.statistics.createTestDanmakuStatistics
+import me.him188.ani.app.ui.subject.episode.video.sidesheet.LocalVideoActionButtons
+import me.him188.ani.app.ui.subject.episode.video.sidesheet.LocalVideoAvailabilityHint
 import me.him188.ani.app.ui.user.SelfInfoUiState
 import me.him188.ani.app.ui.user.TestSelfInfoUiState
 import me.him188.ani.danmaku.api.DanmakuServiceId
@@ -193,6 +195,9 @@ fun EpisodeDetails(
     mediaSelectorState: MediaSelectorState,
     mediaSourceResultListPresentation: () -> MediaSourceResultListPresentation,
     selfInfo: SelfInfoUiState,
+    hasLocalFileBinding: Boolean,
+    onBindLocalFile: suspend (String) -> Boolean,
+    onClearLocalFileBinding: suspend () -> Boolean,
     onSwitchEpisode: (Int) -> Unit,
     onRefreshMediaSources: () -> Unit,
     onRestartSource: (String) -> Unit,
@@ -369,6 +374,13 @@ fun EpisodeDetails(
                                     containerColor = BottomSheetDefaults.ContainerColor,
                                 ),
                             )
+                            LocalVideoAvailabilityHint(
+                                hasLocalFileBinding = hasLocalFileBinding,
+                                modifier = Modifier
+                                    .padding(horizontal = 16.dp)
+                                    .padding(bottom = 8.dp)
+                                    .fillMaxWidth(),
+                            )
                             MediaSelectorView(
                                 mediaSelectorState,
                                 viewKind,
@@ -382,6 +394,14 @@ fun EpisodeDetails(
                                     .padding(vertical = 12.dp, horizontal = 16.dp)
                                     .fillMaxWidth(),
                                 stickyHeaderBackgroundColor = BottomSheetDefaults.ContainerColor,
+                                topActions = {
+                                    LocalVideoActionButtons(
+                                        hasLocalFileBinding = hasLocalFileBinding,
+                                        onBindLocalFile = onBindLocalFile,
+                                        onClearLocalFileBinding = onClearLocalFileBinding,
+                                        onBindSucceeded = { showMediaSelector = false },
+                                    )
+                                },
                                 onClickItem = {
                                     mediaSelectorState.select(it)
                                     showMediaSelector = false
@@ -403,25 +423,42 @@ fun EpisodeDetails(
                                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
                         },
                     ) {
-                        MediaSelectorView(
-                            mediaSelectorState,
-                            viewKind,
-                            onViewKindChange,
-                            fetchRequest,
-                            onFetchRequestChange,
-                            mediaSourceResultListPresentation(),
-                            onRestartSource = onRestartSource,
-                            onRefresh = onRefreshMediaSources,
-                            modifier = Modifier.padding(top = 12.dp)
-                                .padding(horizontal = 16.dp)
-                                .fillMaxWidth(),
-                            stickyHeaderBackgroundColor = BottomSheetDefaults.ContainerColor,
-                            onClickItem = {
-                                mediaSelectorState.select(it)
-                                showMediaSelector = false
-                            },
-                            scrollable = sheetState.targetValue == SheetValue.Expanded,
-                        )
+                        Column {
+                            LocalVideoAvailabilityHint(
+                                hasLocalFileBinding = hasLocalFileBinding,
+                                modifier = Modifier
+                                    .padding(top = 12.dp)
+                                    .padding(horizontal = 16.dp)
+                                    .fillMaxWidth(),
+                            )
+                            MediaSelectorView(
+                                mediaSelectorState,
+                                viewKind,
+                                onViewKindChange,
+                                fetchRequest,
+                                onFetchRequestChange,
+                                mediaSourceResultListPresentation(),
+                                onRestartSource = onRestartSource,
+                                onRefresh = onRefreshMediaSources,
+                                modifier = Modifier.padding(top = 8.dp)
+                                    .padding(horizontal = 16.dp)
+                                    .fillMaxWidth(),
+                                stickyHeaderBackgroundColor = BottomSheetDefaults.ContainerColor,
+                                topActions = {
+                                    LocalVideoActionButtons(
+                                        hasLocalFileBinding = hasLocalFileBinding,
+                                        onBindLocalFile = onBindLocalFile,
+                                        onClearLocalFileBinding = onClearLocalFileBinding,
+                                        onBindSucceeded = { showMediaSelector = false },
+                                    )
+                                },
+                                onClickItem = {
+                                    mediaSelectorState.select(it)
+                                    showMediaSelector = false
+                                },
+                                scrollable = sheetState.targetValue == SheetValue.Expanded,
+                            )
+                        }
                     }
                 }
             }
@@ -1005,6 +1042,9 @@ private fun PreviewEpisodeDetailsImpl(
             mediaSelectorState = mediaSelectorState,
             mediaSourceResultListPresentation = { TestMediaSourceResultListPresentation },
             selfInfo = selfInfo,
+            hasLocalFileBinding = false,
+            onBindLocalFile = { false },
+            onClearLocalFileBinding = { false },
             onSwitchEpisode = {},
             onRefreshMediaSources = {},
             onRestartSource = {},

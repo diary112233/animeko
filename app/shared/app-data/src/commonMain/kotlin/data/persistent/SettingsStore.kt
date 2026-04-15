@@ -22,6 +22,7 @@ import me.him188.ani.app.data.repository.SavedWindowState
 import me.him188.ani.app.data.repository.media.MediaSourceSaves
 import me.him188.ani.app.data.repository.media.MediaSourceSubscriptionsSaveData
 import me.him188.ani.app.data.repository.media.MikanIndexes
+import me.him188.ani.app.data.repository.player.EpisodeLocalFileBindings
 import me.him188.ani.app.data.repository.player.EpisodeHistories
 import me.him188.ani.app.data.repository.torrent.peer.PeerFilterSubscriptionsSaveData
 import me.him188.ani.app.data.repository.user.TokenSave
@@ -69,6 +70,17 @@ abstract class PlatformDataStoreManager {
             produceFile = { resolveDataStoreFile("episodeHistories") },
             corruptionHandler = ReplaceFileCorruptionHandler {
                 EpisodeHistories.Empty
+            },
+        )
+    }
+
+    val episodeLocalFileBindingStore by lazy {
+        DataStoreFactory.create(
+            serializer = EpisodeLocalFileBindings.serializer()
+                .asDataStoreSerializer({ EpisodeLocalFileBindings.Empty }),
+            produceFile = { resolveDataStoreFile("episodeLocalFileBindings") },
+            corruptionHandler = ReplaceFileCorruptionHandler {
+                EpisodeLocalFileBindings.Empty
             },
         )
     }

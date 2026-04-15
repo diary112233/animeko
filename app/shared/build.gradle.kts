@@ -129,6 +129,8 @@ kotlin {
         api(libs.coil.svg)
         api(libs.coil.compose.core)
         implementation(libs.constraintlayout.compose)
+        implementation(libs.filekit.dialogs)
+        implementation(libs.filekit.dialogs.compose)
     }
 
     // shared by android and desktop

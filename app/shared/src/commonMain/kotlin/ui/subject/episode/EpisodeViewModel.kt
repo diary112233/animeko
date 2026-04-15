@@ -59,6 +59,8 @@ import me.him188.ani.app.data.network.AutoSkipRepository
 import me.him188.ani.app.data.repository.episode.EpisodeCollectionRepository
 import me.him188.ani.app.data.repository.episode.EpisodeCommentRepository
 import me.him188.ani.app.data.repository.player.DanmakuRegexFilterRepository
+import me.him188.ani.app.data.repository.player.EpisodeLocalFileBinding
+import me.him188.ani.app.data.repository.player.EpisodeLocalFileBindingRepository
 import me.him188.ani.app.data.repository.subject.SetSubjectCollectionTypeOrDeleteUseCase
 import me.him188.ani.app.data.repository.user.SettingsRepository
 import me.him188.ani.app.domain.comment.PostCommentUseCase
@@ -81,6 +83,7 @@ import me.him188.ani.app.domain.episode.mediaSelectorFlow
 import me.him188.ani.app.domain.foundation.LoadError
 import me.him188.ani.app.domain.media.cache.EpisodeCacheStatus
 import me.him188.ani.app.domain.media.cache.MediaCacheManager
+import me.him188.ani.app.domain.media.fetch.LocalEpisodeFileBindingMediaSource
 import me.him188.ani.app.domain.media.fetch.MediaSourceManager
 import me.him188.ani.app.domain.media.fetch.MediaSourceResultsFilterer
 import me.him188.ani.app.domain.media.resolver.MediaResolver
@@ -157,6 +160,7 @@ import me.him188.ani.danmaku.ui.DanmakuTrackProperties
 import me.him188.ani.datasources.api.PackedDate
 import me.him188.ani.datasources.api.source.MediaFetchRequest
 import me.him188.ani.datasources.api.source.MediaSourceKind
+import me.him188.ani.datasources.api.topic.ResourceLocation
 import me.him188.ani.datasources.api.topic.isDoneOrDropped
 import me.him188.ani.utils.coroutines.SingleTaskExecutor
 import me.him188.ani.utils.coroutines.flows.FlowRestarter
@@ -164,6 +168,11 @@ import me.him188.ani.utils.coroutines.flows.flowOfEmptyList
 import me.him188.ani.utils.coroutines.flows.flowOfNull
 import me.him188.ani.utils.coroutines.flows.restartable
 import me.him188.ani.utils.coroutines.sampleWithInitial
+import me.him188.ani.utils.io.absolutePath
+import me.him188.ani.utils.io.exists
+import me.him188.ani.utils.io.inSystem
+import me.him188.ani.utils.io.isRegularFile
+import me.him188.ani.utils.io.name
 import me.him188.ani.utils.logging.info
 import me.him188.ani.utils.logging.warn
 import me.him188.ani.utils.platform.annotations.TestOnly
@@ -175,6 +184,7 @@ import org.openani.mediamp.MediampPlayer
 import org.openani.mediamp.MediampPlayerFactory
 import org.openani.mediamp.features.chapters
 import org.openani.mediamp.metadata.Chapter
+import kotlinx.io.files.Path
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -251,6 +261,7 @@ class EpisodeViewModel(
     private val danmakuRegexFilterRepository: DanmakuRegexFilterRepository by inject()
     private val mediaSourceManager: MediaSourceManager by inject()
     private val episodeCommentRepository: EpisodeCommentRepository by inject()
+    private val episodeLocalFileBindingRepository: EpisodeLocalFileBindingRepository by inject()
     private val subjectDetailsStateFactory: SubjectDetailsStateFactory by inject()
     private val setDanmakuEnabledUseCase: SetDanmakuEnabledUseCase by inject()
     private val postCommentUseCase: PostCommentUseCase by inject()
@@ -343,6 +354,11 @@ class EpisodeViewModel(
     @UnsafeEpisodeSessionApi
     private val episodeInfoFlow = episodeCollectionFlow.map { it?.episodeInfo }.distinctUntilChanged()
     // endregion
+
+    @OptIn(UnsafeEpisodeSessionApi::class)
+    val localFileBindingFlow = fetchPlayState.episodeSessionFlow.flatMapLatest { session ->
+        episodeLocalFileBindingRepository.bindingFlow(subjectId, session.episodeId)
+    }.stateIn(backgroundScope, SharingStarted.WhileSubscribed(), null)
 
 
     val playerControllerState = PlayerControllerState(ControllerVisibility.Invisible)
@@ -904,6 +920,63 @@ class EpisodeViewModel(
                 .firstOrNull()
                 ?.restartAll()
         }
+    }
+
+    @OptIn(UnsafeEpisodeSessionApi::class)
+    suspend fun bindLocalFile(filePath: String): Boolean {
+        val file = Path(filePath).inSystem
+        if (!file.exists() || !file.isRegularFile()) {
+            return false
+        }
+
+        val episodeSession = fetchPlayState.episodeSessionFlow.first()
+        val fetchSelect = episodeSession.fetchSelectFlow.firstOrNull() ?: return false
+        val absolutePath = file.absolutePath
+        val selectedMedia = fetchSelect.mediaSelector.selected.value
+            ?: fetchSelect.mediaSelector.preferredCandidatesMedia.first().firstOrNull()
+            ?: fetchSelect.mediaSelector.filteredCandidatesMedia.first().firstOrNull()
+        val properties = selectedMedia?.properties
+
+        episodeLocalFileBindingRepository.save(
+            EpisodeLocalFileBinding(
+                subjectId = subjectId,
+                episodeId = episodeSession.episodeId,
+                filePath = absolutePath,
+                displayName = file.name,
+                subtitleLanguageIds = properties?.subtitleLanguageIds ?: emptyList(),
+                resolution = properties?.resolution ?: "",
+                alliance = properties?.alliance.orEmpty(),
+                subtitleKind = properties?.subtitleKind,
+            ),
+        )
+
+        fetchSelect.mediaFetchSession.restartAll()
+        val localMedia = fetchSelect.mediaSelector.filteredCandidates
+            .mapNotNull { candidates ->
+                candidates.firstNotNullOfOrNull { candidate ->
+                    val media = candidate.result ?: return@firstNotNullOfOrNull null
+                    val download = media.download as? ResourceLocation.LocalFile ?: return@firstNotNullOfOrNull null
+                    if (media.mediaSourceId == LocalEpisodeFileBindingMediaSource.ID && download.filePath == absolutePath) {
+                        media
+                    } else {
+                        null
+                    }
+                }
+            }
+            .first()
+        fetchSelect.mediaSelector.select(localMedia)
+        return true
+    }
+
+    @OptIn(UnsafeEpisodeSessionApi::class)
+    suspend fun clearLocalFileBinding(): Boolean {
+        val episodeSession = fetchPlayState.episodeSessionFlow.first()
+        val removed = episodeLocalFileBindingRepository.remove(subjectId, episodeSession.episodeId)
+        if (!removed) {
+            return false
+        }
+        episodeSession.fetchSelectFlow.firstOrNull()?.mediaFetchSession?.restartAll()
+        return true
     }
 
     /**

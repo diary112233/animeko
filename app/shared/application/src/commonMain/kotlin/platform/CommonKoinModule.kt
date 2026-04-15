@@ -60,6 +60,8 @@ import me.him188.ani.app.data.repository.media.MikanIndexCacheRepositoryImpl
 import me.him188.ani.app.data.repository.media.SelectorMediaSourceEpisodeCacheRepository
 import me.him188.ani.app.data.repository.player.DanmakuRegexFilterRepository
 import me.him188.ani.app.data.repository.player.DanmakuRegexFilterRepositoryImpl
+import me.him188.ani.app.data.repository.player.EpisodeLocalFileBindingRepository
+import me.him188.ani.app.data.repository.player.EpisodeLocalFileBindingRepositoryImpl
 import me.him188.ani.app.data.repository.player.EpisodePlayHistoryRepository
 import me.him188.ani.app.data.repository.player.EpisodePlayHistoryRepositoryImpl
 import me.him188.ani.app.data.repository.player.EpisodeScreenshotRepository
@@ -109,6 +111,7 @@ import me.him188.ani.app.domain.media.cache.engine.TorrentMediaCacheEngine
 import me.him188.ani.app.domain.media.cache.storage.HttpMediaCacheStorage
 import me.him188.ani.app.domain.media.cache.storage.MediaSaveDirProvider
 import me.him188.ani.app.domain.media.cache.storage.TorrentMediaCacheStorage
+import me.him188.ani.app.domain.media.fetch.LocalEpisodeFileBindingMediaSource
 import me.him188.ani.app.domain.media.fetch.MediaSourceManager
 import me.him188.ani.app.domain.media.fetch.MediaSourceManagerImpl
 import me.him188.ani.app.domain.mediasource.codec.MediaSourceCodecManager
@@ -335,6 +338,9 @@ private fun KoinApplication.otherModules(getContext: () -> Context, coroutineSco
     single<EpisodePlayHistoryRepository> {
         EpisodePlayHistoryRepositoryImpl(getContext().dataStores.episodeHistoryStore)
     }
+    single<EpisodeLocalFileBindingRepository> {
+        EpisodeLocalFileBindingRepositoryImpl(getContext().dataStores.episodeLocalFileBindingStore)
+    }
     single<AniSubjectRelationIndexService> {
         val provider = get<AniApiProvider>()
         AniSubjectRelationIndexService(provider.subjectRelationsApi)
@@ -462,10 +468,14 @@ private fun KoinApplication.otherModules(getContext: () -> Context, coroutineSco
     single<MediaSourceCodecManager> {
         MediaSourceCodecManager()
     }
+    single {
+        LocalEpisodeFileBindingMediaSource(get())
+    }
     single<MediaSourceManager> {
         MediaSourceManagerImpl(
             additionalSources = {
-                get<MediaCacheManager>().storagesIncludingDisabled.map { it.cacheMediaSource }
+                listOf(get<LocalEpisodeFileBindingMediaSource>()) +
+                    get<MediaCacheManager>().storagesIncludingDisabled.map { it.cacheMediaSource }
             },
         )
     }

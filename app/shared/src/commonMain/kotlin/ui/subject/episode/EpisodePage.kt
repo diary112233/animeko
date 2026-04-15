@@ -497,6 +497,7 @@ private fun EpisodeScreenTabletVeryWide(
                         0 -> Box(Modifier.fillMaxSize()) {
                             val navigator = LocalNavigator.current
                             val pageState by vm.pageState.collectAsStateWithLifecycle()
+                            val localFileBinding by vm.localFileBindingFlow.collectAsStateWithLifecycle()
                             val toaster = LocalToaster.current
                             pageState?.let { page ->
                                 EpisodeDetails(
@@ -512,6 +513,9 @@ private fun EpisodeScreenTabletVeryWide(
                                     page.mediaSelectorState,
                                     { page.mediaSourceResultListPresentation },
                                     page.selfInfo,
+                                    hasLocalFileBinding = localFileBinding != null,
+                                    onBindLocalFile = { vm.bindLocalFile(it) },
+                                    onClearLocalFileBinding = { vm.clearLocalFileBinding() },
                                     modifier = Modifier.fillMaxSize(),
                                     onSwitchEpisode = { episodeId ->
                                         if (!vm.episodeSelectorState.selectEpisodeId(episodeId)) {
@@ -663,6 +667,7 @@ private fun EpisodeScreenContentPhone(
         episodeDetails = {
             val navigator = LocalNavigator.current
             val pageState by vm.pageState.collectAsStateWithLifecycle()
+            val localFileBinding by vm.localFileBindingFlow.collectAsStateWithLifecycle()
             val scope = rememberCoroutineScope()
 
             pageState?.let { page ->
@@ -679,6 +684,9 @@ private fun EpisodeScreenContentPhone(
                     page.mediaSelectorState,
                     { page.mediaSourceResultListPresentation },
                     page.selfInfo,
+                    hasLocalFileBinding = localFileBinding != null,
+                    onBindLocalFile = { vm.bindLocalFile(it) },
+                    onClearLocalFileBinding = { vm.clearLocalFileBinding() },
                     onSwitchEpisode = { episodeId ->
                         if (!vm.episodeSelectorState.selectEpisodeId(episodeId)) {
                             navigator.navigateEpisodeDetails(vm.subjectId, episodeId)
@@ -1036,6 +1044,7 @@ private fun EpisodeVideo(
                 },
                 mediaSelectorPage = {
                     val pageState by vm.pageState.collectAsStateWithLifecycle()
+                    val localFileBinding by vm.localFileBindingFlow.collectAsStateWithLifecycle()
                     pageState?.let { page ->
                         val (viewKind, onViewKindChange) = rememberSaveable { mutableStateOf(page.initialMediaSelectorViewKind) }
                         EpisodeVideoSideSheets.MediaSelectorSheet(
@@ -1048,6 +1057,9 @@ private fun EpisodeVideo(
                             onDismissRequest = { goBack() },
                             onRefresh = { vm.refreshFetch() },
                             onRestartSource = { vm.restartSource(it) },
+                            hasLocalFileBinding = localFileBinding != null,
+                            onBindLocalFile = { vm.bindLocalFile(it) },
+                            onClearLocalFileBinding = { vm.clearLocalFileBinding() },
                         )
                     }
                 },

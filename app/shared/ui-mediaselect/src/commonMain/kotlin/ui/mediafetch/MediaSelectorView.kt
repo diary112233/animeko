@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -118,6 +119,7 @@ fun MediaSelectorView(
     onClickItem: (Media) -> Unit = { state.select(it) },
     singleLineFilter: Boolean = false,
     scrollable: Boolean = true,
+    topActions: @Composable RowScope.() -> Unit = {},
 ) {
     val bringIntoViewRequesters = remember { mutableStateMapOf<Media, BringIntoViewRequester>() }
     val presentation by state.presentationFlow.collectAsStateWithLifecycle()
@@ -145,6 +147,8 @@ fun MediaSelectorView(
             viewKind,
             onViewKindChange,
             onRequestFetchRequestEdit = { showEditRequest = true },
+            showEditRequestButton = fetchRequest != null,
+            topActions = topActions,
             Modifier.fillMaxWidth().padding(bottom = 16.dp),
         )
 
@@ -225,6 +229,8 @@ private fun ViewKindAndMoreRow(
     viewKind: ViewKind,
     onViewKindChange: (ViewKind) -> Unit,
     onRequestFetchRequestEdit: () -> Unit,
+    showEditRequestButton: Boolean,
+    topActions: @Composable RowScope.() -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -250,21 +256,14 @@ private fun ViewKindAndMoreRow(
             }
         }
 
-        Box {
-            IconButton(onRequestFetchRequestEdit) {
-                Icon(Icons.Rounded.EditSquare, contentDescription = stringResource(Lang.settings_media_source_more))
-            }
-//            DropdownMenu(showDropdown, { showDropdown = false }) {
-//                DropdownMenuItem(
-//                    text = { Text("编辑查询请求") },
-//                    onClick = {
-//                        showEditRequest = true
-//                        showDropdown = false
-//                    },
-//                )
-//            }
+        topActions()
 
-            // 编辑请求
+        if (showEditRequestButton) {
+            Box {
+                IconButton(onRequestFetchRequestEdit) {
+                    Icon(Icons.Rounded.EditSquare, contentDescription = stringResource(Lang.settings_media_source_more))
+                }
+            }
         }
     }
 }
