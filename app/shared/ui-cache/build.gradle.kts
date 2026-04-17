@@ -28,6 +28,8 @@ kotlin {
         api(projects.app.shared.uiAdaptive)
         api(projects.app.shared.uiSettings)
         api(projects.app.shared.uiMediaselect)
+        implementation(libs.filekit.dialogs)
+        implementation(libs.filekit.dialogs.compose)
         implementation(libs.compose.components.resources)
         implementation(projects.app.shared.placeholder)
     }
