@@ -210,20 +210,37 @@ afterEvaluate {
     when (os) {
         Os.Windows -> {
             tasks.named("createRuntimeImage", AbstractJLinkTask::class) {
-                val dirsNames = listOf(
+                val paths = listOf(
                     // From your (JBR's) Java Home to Packed Java Home 
                     "bin/jcef_helper.exe" to "bin/jcef_helper.exe",
                     "bin/icudtl.dat" to "bin/icudtl.dat",
+                    "bin/chrome_100_percent.pak" to "bin/chrome_100_percent.pak",
+                    "bin/chrome_200_percent.pak" to "bin/chrome_200_percent.pak",
+                    "bin/resources.pak" to "bin/resources.pak",
                     "bin/v8_context_snapshot.bin" to "bin/v8_context_snapshot.bin",
+                    "bin/locales" to "bin/locales",
                 )
 
-                dirsNames.forEach { (sourcePath, destPath) ->
+                paths.forEach { (sourcePath, destPath) ->
                     val source = File(javaHome.get()).resolve(sourcePath)
-                    inputs.file(source)
+                    if (source.isDirectory) {
+                        inputs.dir(source)
+                    } else {
+                        inputs.file(source)
+                    }
                     val dest = destinationDir.file(destPath)
-                    outputs.file(dest)
+                    if (source.isDirectory) {
+                        outputs.dir(dest)
+                    } else {
+                        outputs.file(dest)
+                    }
                     doLast("copy $sourcePath") {
-                        source.copyTo(dest.get().asFile)
+                        val destFile = dest.get().asFile
+                        if (source.isDirectory) {
+                            source.copyRecursively(destFile, overwrite = true)
+                        } else {
+                            source.copyTo(destFile, overwrite = true)
+                        }
                         logger.info("Copied $source to $dest")
                     }
                 }
